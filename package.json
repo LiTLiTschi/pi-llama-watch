@@ -1,0 +1,22 @@
+{
+  "name": "pi-llama-watch",
+  "version": "0.1.0",
+  "description": "Pi extension showing LLM status (p[N%] / g[Nt/s]) in status bar",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "file:/home/liu/.nvm/versions/node/v24.15.0/lib/node_modules/@earendil-works/pi-coding-agent",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": ["pi", "extension", "llama", "watch"],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "files": {
+    "src/format.ts": {
+      "latest": {
+        "commit": "unknown",
+        "timestamp": "2026-05-18T17:20:37.135Z",
+        "mi": 58.4,
+        "cognitive": 2,
+        "nesting": 2,
+        "lines": 15,
+        "maxCyclomatic": 2,
+        "entropy": 4.49
+      },
+      "history": [
+        {
+          "commit": "unknown",
+          "timestamp": "2026-05-18T17:20:37.135Z",
+          "mi": 58.4,
+          "cognitive": 2,
+          "nesting": 2,
+          "lines": 15,
+          "maxCyclomatic": 2,
+          "entropy": 4.49
+        }
+      ],
+      "trend": "stable"
+    },
+    "src/LlamaState.ts": {
+      "latest": {
+        "commit": "unknown",
+        "timestamp": "2026-05-18T17:24:47.996Z",
+        "mi": 58.6,
+        "cognitive": 0,
+        "nesting": 0,
+        "lines": 17,
+        "maxCyclomatic": 1,
+        "entropy": 3.94
+      },
+      "history": [
+        {
+          "commit": "unknown",
+          "timestamp": "2026-05-18T17:24:47.996Z",
+          "mi": 58.6,
+          "cognitive": 0,
+          "nesting": 0,
+          "lines": 17,
+          "maxCyclomatic": 1,
+          "entropy": 3.94
+        }
+      ],
+      "trend": "stable"
+    },
+    "src/index.ts": {
+      "latest": {
+        "commit": "unknown",
+        "timestamp": "2026-05-18T17:32:13.715Z",
+        "mi": 34.5,
+        "cognitive": 66,
+        "nesting": 7,
+        "lines": 87,
+        "maxCyclomatic": 35,
+        "entropy": 5.48
+      },
+      "history": [
+        {
+          "commit": "unknown",
+          "timestamp": "2026-05-18T17:32:13.715Z",
+          "mi": 34.5,
+          "cognitive": 66,
+          "nesting": 7,
+          "lines": 87,
+          "maxCyclomatic": 35,
+          "entropy": 5.48
+        }
+      ],
+      "trend": "stable"
+    }
+  },
+  "capturedAt": "2026-05-18T17:32:18.715Z"
+}
