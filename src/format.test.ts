@@ -64,16 +64,16 @@ describe("formatState", () => {
 		expect(formatState(state)).toBeNull();
 	});
 
-	test("returns p[N%] for processing state", () => {
+	test("returns displayValue for processing state", () => {
 		const state: LlamaStateData = {
 			type: "processing",
 			slots: [{ slotId: 1, type: "processing", progress: 0.88 }],
-			aggregated: { displayPrefix: "p", displayValue: "88%" },
+			aggregated: { displayPrefix: null, displayValue: "88%" },
 		};
-		expect(formatState(state)).toBe("p[88%]");
+		expect(formatState(state)).toBe("88%");
 	});
 
-	test("returns g[Nt/s] for generating state", () => {
+	test("returns displayValue for generating state", () => {
 		const state: LlamaStateData = {
 			type: "generating",
 			slots: [
@@ -84,8 +84,17 @@ describe("formatState", () => {
 					tokensRemaining: 50,
 				},
 			],
-			aggregated: { displayPrefix: "g", displayValue: "25t/s" },
+			aggregated: { displayPrefix: null, displayValue: "25t/s" },
 		};
-		expect(formatState(state)).toBe("g[25t/s]");
+		expect(formatState(state)).toBe("25t/s");
+	});
+
+	test("returns null when displayValue is empty string", () => {
+		const state: LlamaStateData = {
+			type: "processing",
+			slots: [],
+			aggregated: { displayPrefix: null, displayValue: "" },
+		};
+		expect(formatState(state)).toBeNull();
 	});
 });

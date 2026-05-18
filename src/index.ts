@@ -29,13 +29,12 @@ export default function (pi: ExtensionAPI) {
 
 			const theme = ctx.ui.theme;
 			if (formatted === null) {
-				ctx.ui.setStatus(STATUS_KEY, undefined);
+				ctx.ui.setWidget(STATUS_KEY, undefined);
 			} else {
 				const color = STATUS_COLORS[state.type] ?? "dim";
-				ctx.ui.setStatus(
-					STATUS_KEY,
+				ctx.ui.setWidget(STATUS_KEY, [
 					theme.fg(color as Parameters<typeof theme.fg>[0], formatted),
-				);
+				]);
 			}
 		}, 1000);
 	}
@@ -59,13 +58,13 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_end", async (_event, ctx) => {
 		enabled = false;
 		stopStatusUpdate();
-		ctx.ui.setStatus(STATUS_KEY, undefined);
+		ctx.ui.setWidget(STATUS_KEY, undefined);
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
 		enabled = false;
 		stopStatusUpdate();
-		ctx.ui.setStatus(STATUS_KEY, undefined);
+		ctx.ui.setWidget(STATUS_KEY, undefined);
 	});
 
 	pi.registerCommand("llama-watch", {
@@ -81,7 +80,7 @@ export default function (pi: ExtensionAPI) {
 			} else if (cmd === "off") {
 				enabled = false;
 				stopStatusUpdate();
-				ctx.ui.setStatus(STATUS_KEY, undefined);
+				ctx.ui.setWidget(STATUS_KEY, undefined);
 				ctx.ui.notify("LLM status: disabled", "info");
 			} else if (cmd === "toggle") {
 				enabled = !enabled;
@@ -89,7 +88,7 @@ export default function (pi: ExtensionAPI) {
 					startStatusUpdate(ctx);
 				} else if (!enabled) {
 					stopStatusUpdate();
-					ctx.ui.setStatus(STATUS_KEY, undefined);
+					ctx.ui.setWidget(STATUS_KEY, undefined);
 				}
 				ctx.ui.notify(
 					`LLM status: ${enabled ? "enabled" : "disabled"}`,

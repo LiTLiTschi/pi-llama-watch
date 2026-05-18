@@ -106,8 +106,8 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("generating");
 		expect(state.slots).toHaveLength(2);
-		// Both slots shown with slot IDs, sorted by slotId asc
-		expect(state.aggregated.displayValue).toBe("0:100t/s, 1:200t/s");
+		// Both slots shown, sorted by slotId asc
+		expect(state.aggregated.displayValue).toBe("100t/s, 200t/s");
 		ls.stop();
 	});
 
@@ -194,8 +194,7 @@ describe("LlamaState", () => {
 
 		const state = ls.getState();
 		expect(state.slots[0].tokensPerSecond).toBe(75);
-		// Display includes slot ID: `0:75t/s`
-		expect(state.aggregated.displayValue).toBe("0:75t/s");
+		expect(state.aggregated.displayValue).toBe("75t/s");
 		ls.stop();
 	});
 
@@ -249,8 +248,7 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("processing");
 		expect(state.slots).toHaveLength(2);
-		// Both slots shown with slot IDs, sorted by slotId asc
-		expect(state.aggregated.displayValue).toBe("0:50%, 1:20%");
+		expect(state.aggregated.displayValue).toBe("50%, 20%");
 		ls.stop();
 	});
 
@@ -291,8 +289,8 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("generating");
 		expect(state.slots).toHaveLength(5);
-		// Shows top 2 + "+3 remaining", sorted by slotId asc
-		expect(state.aggregated.displayValue).toBe("0:100t/s, 1:200t/s, +3");
+		// Shows top 2 + "+3 remaining"
+		expect(state.aggregated.displayValue).toBe("100t/s, 200t/s, +3");
 		ls.stop();
 	});
 
@@ -327,44 +325,40 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("processing");
 		expect(state.slots).toHaveLength(4);
-		// Shows top 2 + "+2 remaining", sorted by slotId asc
-		expect(state.aggregated.displayValue).toBe("0:90%, 1:50%, +2");
+		// Shows top 2 + "+2 remaining"
+		expect(state.aggregated.displayValue).toBe("90%, 50%, +2");
 		ls.stop();
 	});
 
-	test("parseSlotResponse: inactive slot shows as [-] between active slots",
-		() => {
-			const ls = new LlamaState(8080);
-			ls["parseSlotResponse"]({
-				"0": {
-					id: 0,
-					is_processing: true,
-					next_token: [{ n_decoded: 100, n_remain: 100 }],
-					params: { n_predict: 200 },
-				},
-				"1": {
-					id: 1,
-					is_processing: false,
-					next_token: [{ n_decoded: 0, n_remain: 0 }],
-					params: { n_predict: 0 },
-				},
-				"2": {
-					id: 2,
-					is_processing: true,
-					next_token: [{ n_decoded: 50, n_remain: 50 }],
-					params: { n_predict: 100 },
-				},
-			});
-			const state = ls.getState();
-			expect(state.type).toBe("generating");
-			expect(state.slots).toHaveLength(3);
-			// Slot 0 active, Slot 1 inactive, Slot 2 active
-			expect(state.aggregated.displayValue).toBe(
-				"0:100t/s, 1:-, 2:50t/s",
-			);
-			ls.stop();
-		},
-	);
+	test("parseSlotResponse: inactive slot shows as [-] between active slots", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 100, n_remain: 100 }],
+				params: { n_predict: 200 },
+			},
+			"1": {
+				id: 1,
+				is_processing: false,
+				next_token: [{ n_decoded: 0, n_remain: 0 }],
+				params: { n_predict: 0 },
+			},
+			"2": {
+				id: 2,
+				is_processing: true,
+				next_token: [{ n_decoded: 50, n_remain: 50 }],
+				params: { n_predict: 100 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("generating");
+		expect(state.slots).toHaveLength(3);
+		// Active + inactive + active
+		expect(state.aggregated.displayValue).toBe("100t/s, -, 50t/s");
+		ls.stop();
+	});
 
 	test("parseSlotResponse: all slots inactive shows all idle", () => {
 		const ls = new LlamaState(8080);
@@ -385,7 +379,7 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("idle");
 		expect(state.slots).toHaveLength(2);
-		expect(state.aggregated.displayValue).toBe("0:-, 1:-");
+		expect(state.aggregated.displayValue).toBe("-, -");
 		ls.stop();
 	});
 
@@ -408,32 +402,30 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("generating");
 		expect(state.slots).toHaveLength(2);
-		expect(state.aggregated.displayValue).toBe("0:-, 1:75t/s");
+		expect(state.aggregated.displayValue).toBe("-, 75t/s");
 		ls.stop();
 	});
 
-	test("parseSlotResponse: single active processing among inactive",
-		() => {
-			const ls = new LlamaState(8080);
-			ls["parseSlotResponse"]({
-				"0": {
-					id: 0,
-					is_processing: false,
-					next_token: [{ n_decoded: 0, n_remain: 0 }],
-					params: { n_predict: 0 },
-				},
-				"1": {
-					id: 1,
-					is_processing: true,
-					next_token: [{ n_decoded: 0, n_remain: 50 }],
-					params: { n_predict: 100 },
-				},
-			});
-			const state = ls.getState();
-			expect(state.type).toBe("processing");
-			expect(state.slots).toHaveLength(2);
-			expect(state.aggregated.displayValue).toBe("0:-, 1:50%");
-			ls.stop();
-		},
-	);
+	test("parseSlotResponse: single active processing among inactive", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: false,
+				next_token: [{ n_decoded: 0, n_remain: 0 }],
+				params: { n_predict: 0 },
+			},
+			"1": {
+				id: 1,
+				is_processing: true,
+				next_token: [{ n_decoded: 0, n_remain: 50 }],
+				params: { n_predict: 100 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("processing");
+		expect(state.slots).toHaveLength(2);
+		expect(state.aggregated.displayValue).toBe("-, 50%");
+		ls.stop();
+	});
 });

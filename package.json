@@ -1,6 +1,6 @@
 {
   "name": "pi-llama-watch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pi extension showing LLM slot status in status bar",
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
   "author": "LiTLiTschi",
   "license": "MIT",
   "pi": {
-    "extensions": ["./src"]
+    "extensions": ["./src"],
+    "image": "llama-preview.jpg"
   }
 }

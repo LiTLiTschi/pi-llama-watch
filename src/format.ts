@@ -14,5 +14,5 @@ export function formatState(state: LlamaStateData): string | null {
 	if (state.type === "idle") {
 		return null;
 	}
-	return `${state.aggregated.displayPrefix}[${state.aggregated.displayValue}]`;
+	return state.aggregated.displayValue || null;
 }

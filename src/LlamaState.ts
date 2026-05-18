@@ -160,7 +160,7 @@ export class LlamaState {
 			});
 		}
 
-		// Determine aggregated display — show ALL slot values as `slotId:value`, no p/g
+		// Determine aggregated display — show all slot values, no p/g prefix
 		let type: LlamaStateType = "idle";
 		let displayValue = "";
 
@@ -180,29 +180,24 @@ export class LlamaState {
 			slots.sort((a, b) => a.slotId - b.slotId);
 
 			// Build one entry per slot
-			const entries: Array<{ slotId: number; value: string }> = slots.map(
-				(s) => {
-					if (s.type === "generating") {
-						const v =
-							s.tokensPerSecond !== undefined
-								? Math.round(s.tokensPerSecond)
-								: (s.tokensDecoded ?? 0);
-						return { slotId: s.slotId, value: `${v}t/s` };
-					} else if (s.type === "processing") {
-						const pct =
-							s.progress != null && s.progress > 0
-								? Math.round(s.progress * 100)
-								: undefined;
-						return {
-							slotId: s.slotId,
-							value: pct != null ? `${pct}%` : "--%",
-						};
-					} else {
-						// Inactive/idle slot
-						return { slotId: s.slotId, value: "-" };
-					}
-				},
-			);
+			const entries: Array<{ value: string }> = slots.map((s) => {
+				if (s.type === "generating") {
+					const v =
+						s.tokensPerSecond !== undefined
+							? Math.round(s.tokensPerSecond)
+							: (s.tokensDecoded ?? 0);
+					return { value: `${v}t/s` };
+				} else if (s.type === "processing") {
+					const pct =
+						s.progress != null && s.progress > 0
+							? Math.round(s.progress * 100)
+							: undefined;
+					return { value: pct != null ? `${pct}%` : "--%" };
+				} else {
+					// Inactive/idle slot
+					return { value: "-" };
+				}
+			});
 
 			// Compact: all if ≤3, truncate with +N if more
 			displayValue = formatCompact(entries);
@@ -217,17 +212,14 @@ export class LlamaState {
 }
 
 /** Compact display: show all if ≤3, else top-2 + "+N remaining" */
-function formatCompact(
-	entries: Array<{ slotId: number; value: string }>,
-	maxShow = 3,
-): string {
+function formatCompact(entries: Array<{ value: string }>, maxShow = 3): string {
 	if (entries.length === 0) return "";
 	if (entries.length <= maxShow) {
-		return entries.map((e) => `${e.slotId}:${e.value}`).join(", ");
+		return entries.map((e) => e.value).join(", ");
 	}
 	const shown = entries.slice(0, maxShow - 1);
 	const remaining = entries.length - (maxShow - 1);
-	const parts = shown.map((e) => `${e.slotId}:${e.value}`);
+	const parts = shown.map((e) => e.value);
 	parts.push(`+${remaining}`);
 	return parts.join(", ");
 }
