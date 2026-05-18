@@ -142,7 +142,7 @@ describe("LlamaState", () => {
 				id: 0,
 				is_processing: false,
 				next_token: [{ n_decoded: 0, n_remain: 0 }],
-				params: {},
+				params: { n_predict: 0 },
 			},
 		});
 		const state = ls.getState();
@@ -161,8 +161,60 @@ describe("LlamaState", () => {
 			} as any,
 		});
 		const state = ls.getState();
-		// Should not crash — treat as idle or process what we can
-		expect(state).toBeDefined();
+		// Should not crash — state shape intact
+		expect(state.type).toBeDefined();
+		expect(Array.isArray(state.slots)).toBe(true);
+		expect(state.aggregated).toBeDefined();
+		ls.stop();
+	});
+
+	test("parseSlotResponse: computes TPS for generating slots across polls", () => {
+		const ls = new LlamaState(8080);
+		// Stub Date.now() for deterministic testing
+		let fakeTime = 1000000;
+		vi.spyOn(Date, "now").mockImplementation(() => fakeTime);
+
+		// First poll: slot generates 50 tokens
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 50, n_remain: 206 }],
+				params: { n_predict: 256 },
+			},
+		});
+
+		// Advance time by 2 seconds
+		fakeTime += 2000;
+
+		// Second poll: slot generates 150 more tokens (total 200)
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 200, n_remain: 56 }],
+				params: { n_predict: 256 },
+			},
+		});
+
+		const state = ls.getState();
+		// 150 tokens decoded / 2 seconds = 75 t/s
+		expect(state.slots[0].tokensPerSecond).toBe(75);
+		ls.stop();
+	});
+
+	test("parseSlotResponse: TPS is undefined on first poll", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 50, n_remain: 206 }],
+				params: { n_predict: 256 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.slots[0].tokensPerSecond).toBeUndefined();
 		ls.stop();
 	});
 

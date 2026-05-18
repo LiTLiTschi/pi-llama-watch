@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { formatProcessing, formatGenerating, formatState } from "./format";
-import type { LlamaState } from "./LlamaState";
+import type { LlamaStateData } from "./LlamaState";
 
 describe("formatProcessing", () => {
 	test("returns percentage string for 0.88 progress", () => {
@@ -56,7 +56,7 @@ describe("formatGenerating", () => {
 
 describe("formatState", () => {
 	test("returns null for idle state", () => {
-		const state: LlamaState = {
+		const state: LlamaStateData = {
 			type: "idle",
 			slots: [],
 			aggregated: { displayPrefix: null, displayValue: "" },
@@ -65,7 +65,7 @@ describe("formatState", () => {
 	});
 
 	test("returns p[N%] for processing state", () => {
-		const state: LlamaState = {
+		const state: LlamaStateData = {
 			type: "processing",
 			slots: [{ slotId: 1, type: "processing", progress: 0.88 }],
 			aggregated: { displayPrefix: "p", displayValue: "88%" },
@@ -74,7 +74,7 @@ describe("formatState", () => {
 	});
 
 	test("returns g[Nt/s] for generating state", () => {
-		const state: LlamaState = {
+		const state: LlamaStateData = {
 			type: "generating",
 			slots: [
 				{

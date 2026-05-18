@@ -7,6 +7,7 @@ export interface SlotInfo {
 	tokensDecoded?: number;
 	tokensRemaining?: number;
 	tokensPredicted?: number;
+	tokensPerSecond?: number;
 }
 
 export interface LlamaStateData {
@@ -29,6 +30,12 @@ export interface RawSlots {
 	[key: string]: RawSlot;
 }
 
+// Internal tracking for per-slot TPS computation
+interface SlotHistory {
+	decoded: number;
+	timestamp: number;
+}
+
 export class LlamaState {
 	private port: number;
 	private intervalMs: number;
@@ -38,6 +45,8 @@ export class LlamaState {
 		slots: [],
 		aggregated: { displayPrefix: null, displayValue: "" },
 	};
+	// Per-slot history for TPS calculation
+	private history: Map<number, SlotHistory> = new Map();
 
 	constructor(port: number = 8080, intervalMs: number = 1000) {
 		this.port = port;
@@ -51,7 +60,6 @@ export class LlamaState {
 	start(): void {
 		this.stop();
 		this.timer = setInterval(() => this.poll(), this.intervalMs);
-		// Also do an immediate poll
 		this.poll();
 	}
 
@@ -60,6 +68,7 @@ export class LlamaState {
 			clearInterval(this.timer);
 			this.timer = null;
 		}
+		this.history.clear();
 	}
 
 	private async poll(): Promise<void> {
@@ -77,7 +86,9 @@ export class LlamaState {
 
 	// Exposed for testing; in production called from poll()
 	parseSlotResponse(data: RawSlots): void {
+		const now = Date.now();
 		const slots: SlotInfo[] = [];
+		const currentSlotIds = new Set<number>();
 
 		for (const [, slot] of Object.entries(data)) {
 			if (!slot.is_processing) {
@@ -86,15 +97,35 @@ export class LlamaState {
 
 			const decoded = slot.next_token?.[0]?.n_decoded ?? 0;
 			const remaining = slot.next_token?.[0]?.n_remain ?? 0;
-			const predicted = slot.params?.n_predict ?? decoded + remaining;
+			const predicted =
+				slot.params?.n_predict ?? decoded + remaining;
 
-			const type: LlamaStateType = decoded > 0 ? "generating" : "processing";
+			const type: LlamaStateType =
+				decoded > 0 ? "generating" : "processing";
+
 			const progress =
 				type === "processing"
 					? predicted > 0
 						? (predicted - remaining) / predicted
 						: 0
 					: undefined;
+
+			// Compute TPS for generating slots
+			let tps: number | undefined;
+			if (type === "generating" && decoded > 0) {
+				const hist = this.history.get(slot.id);
+				if (hist) {
+					const elapsedSec = (now - hist.timestamp) / 1000;
+					const decodedDelta = decoded - hist.decoded;
+					if (elapsedSec > 0 && decodedDelta > 0) {
+						tps = decodedDelta / elapsedSec;
+					}
+				}
+			}
+
+			// Update history
+			this.history.set(slot.id, { decoded, timestamp: now });
+			currentSlotIds.add(slot.id);
 
 			slots.push({
 				slotId: slot.id,
@@ -103,7 +134,15 @@ export class LlamaState {
 				tokensDecoded: decoded,
 				tokensRemaining: remaining,
 				tokensPredicted: predicted,
+				tokensPerSecond: tps,
 			});
+		}
+
+		// Remove history for slots no longer active
+		for (const id of this.history.keys()) {
+			if (!currentSlotIds.has(id)) {
+				this.history.delete(id);
+			}
 		}
 
 		// Determine aggregated display
@@ -114,33 +153,31 @@ export class LlamaState {
 		if (slots.length === 0) {
 			type = "idle";
 		} else {
-			// Generating wins over processing
 			const hasGenerating = slots.some((s) => s.type === "generating");
 			if (hasGenerating) {
 				type = "generating";
 				displayPrefix = "g";
-				// Pick generating slot with highest speed (tokensDecoded / tokensPredicted ratio is not speed)
-				// Actually speed = tokens over time. For display, pick slot with highest decoded/remaining ratio as proxy
-				// Simpler: just pick the first generating slot and use its decoded vs predict
+				// Pick generating slot with highest actual TPS
 				const genSlots = slots.filter((s) => s.type === "generating");
-				const top = genSlots.reduce((a, b) => {
-					const aRatio =
-						(a.tokensPredicted ?? 1) > 0
-							? (a.tokensDecoded ?? 0) / (a.tokensPredicted ?? 1)
-							: 0;
-					const bRatio =
-						(b.tokensPredicted ?? 1) > 0
-							? (b.tokensDecoded ?? 0) / (b.tokensPredicted ?? 1)
-							: 0;
-					return aRatio >= bRatio ? a : b;
-				});
-				displayValue = `${top.tokensDecoded}/s`;
+				const top = genSlots.reduce(
+					(a, b) =>
+						(a.tokensPerSecond ?? 0) >=
+						(b.tokensPerSecond ?? 0)
+							? a
+							: b,
+				);
+				// Show TPS if we have a measurement, otherwise show raw decoded count
+				if (top.tokensPerSecond) {
+					displayValue = `${Math.round(top.tokensPerSecond)}t/s`;
+				} else {
+					displayValue = `${top.tokensDecoded}`;
+				}
 			} else {
 				type = "processing";
 				displayPrefix = "p";
-				// Pick slot with highest progress
-				const top = slots.reduce((a, b) =>
-					(a.progress ?? 0) >= (b.progress ?? 0) ? a : b,
+				const top = slots.reduce(
+					(a, b) =>
+						(a.progress ?? 0) >= (b.progress ?? 0) ? a : b,
 				);
 				displayValue = top.progress
 					? `${Math.round(top.progress * 100)}%`
