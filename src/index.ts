@@ -6,6 +6,10 @@ import { LlamaState } from "./LlamaState.js";
 import { formatState } from "./format.js";
 
 const STATUS_KEY = "llama-watch";
+const STATUS_COLORS: Record<string, string> = {
+	processing: "warning",
+	generating: "success",
+};
 
 export default function (pi: ExtensionAPI) {
 	let llamaState: LlamaState | null = null;
@@ -27,11 +31,7 @@ export default function (pi: ExtensionAPI) {
 			if (formatted === null) {
 				ctx.ui.setStatus(STATUS_KEY, undefined);
 			} else {
-				const colorMap: Record<string, string> = {
-					processing: "warning",
-					generating: "success",
-				};
-				const color = colorMap[state.type] ?? "dim";
+				const color = STATUS_COLORS[state.type] ?? "dim";
 				ctx.ui.setStatus(
 					STATUS_KEY,
 					theme.fg(color as Parameters<typeof theme.fg>[0], formatted),
@@ -51,7 +51,9 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("agent_start", async (_event, ctx) => {
 		enabled = true;
-		startStatusUpdate(ctx);
+		if (!llamaState) {
+			startStatusUpdate(ctx);
+		}
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {

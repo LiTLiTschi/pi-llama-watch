@@ -19,40 +19,40 @@
       "id": "6",
       "subject": "Fix critical TPS bug — tokensDecoded not tokens-per-second",
       "description": "LlamaState.ts:115 displays tokensDecoded (cumulative counter, e.g. 50) as \"/s\" making it look like 50t/s when it's actually total decoded tokens. Fix by tracking timestamps between polls and computing actual TPS.",
-      "status": "pending",
+      "status": "completed",
       "metadata": {
         "agentType": "worker"
       },
       "blocks": [],
       "blockedBy": [],
       "createdAt": 1779129780698,
-      "updatedAt": 1779129780698
+      "updatedAt": 1779132518251
     },
     {
       "id": "7",
       "subject": "Fix type import in format.test.ts + add tsconfig test include",
       "description": "format.test.ts imports LlamaState class as type instead of LlamaStateData interface. Also add **/*.test.ts to tsconfig.json include to catch this in future.",
-      "status": "pending",
+      "status": "completed",
       "metadata": {
         "agentType": "worker"
       },
       "blocks": [],
       "blockedBy": [],
       "createdAt": 1779129780698,
-      "updatedAt": 1779129780698
+      "updatedAt": 1779132518252
     },
     {
       "id": "8",
       "subject": "Fix remaining important issues from review",
       "description": "- Add connection health indicator (clear stale state on consecutive failures)\n- Fix progress tracking for generating slots\n- Clean up verbose comment in LlamaState.ts\n- Fix weak malformed data test assertion",
-      "status": "pending",
+      "status": "completed",
       "metadata": {
         "agentType": "worker"
       },
       "blocks": [],
       "blockedBy": [],
       "createdAt": 1779129780698,
-      "updatedAt": 1779129780698
+      "updatedAt": 1779132518252
     }
   ]
 }

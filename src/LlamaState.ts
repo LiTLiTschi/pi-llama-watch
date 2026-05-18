@@ -97,11 +97,9 @@ export class LlamaState {
 
 			const decoded = slot.next_token?.[0]?.n_decoded ?? 0;
 			const remaining = slot.next_token?.[0]?.n_remain ?? 0;
-			const predicted =
-				slot.params?.n_predict ?? decoded + remaining;
+			const predicted = slot.params?.n_predict ?? decoded + remaining;
 
-			const type: LlamaStateType =
-				decoded > 0 ? "generating" : "processing";
+			const type: LlamaStateType = decoded > 0 ? "generating" : "processing";
 
 			const progress =
 				type === "processing"
@@ -159,12 +157,8 @@ export class LlamaState {
 				displayPrefix = "g";
 				// Pick generating slot with highest actual TPS
 				const genSlots = slots.filter((s) => s.type === "generating");
-				const top = genSlots.reduce(
-					(a, b) =>
-						(a.tokensPerSecond ?? 0) >=
-						(b.tokensPerSecond ?? 0)
-							? a
-							: b,
+				const top = genSlots.reduce((a, b) =>
+					(a.tokensPerSecond ?? 0) >= (b.tokensPerSecond ?? 0) ? a : b,
 				);
 				// Show TPS if we have a measurement, otherwise show raw decoded count
 				if (top.tokensPerSecond) {
@@ -175,9 +169,8 @@ export class LlamaState {
 			} else {
 				type = "processing";
 				displayPrefix = "p";
-				const top = slots.reduce(
-					(a, b) =>
-						(a.progress ?? 0) >= (b.progress ?? 0) ? a : b,
+				const top = slots.reduce((a, b) =>
+					(a.progress ?? 0) >= (b.progress ?? 0) ? a : b,
 				);
 				displayValue = top.progress
 					? `${Math.round(top.progress * 100)}%`
