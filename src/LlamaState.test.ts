@@ -20,7 +20,6 @@ describe("LlamaState", () => {
 
 	test("constructor uses port 8080 by default", () => {
 		const ls = new LlamaState();
-		// We can't test the port directly, but we can verify the object exists
 		expect(ls).toBeInstanceOf(LlamaState);
 		ls.stop();
 	});
@@ -66,7 +65,6 @@ describe("LlamaState", () => {
 		expect(state.slots[0].slotId).toBe(0);
 		expect(state.slots[0].type).toBe("processing");
 		expect(state.slots[0].tokensRemaining).toBe(256);
-		expect(state.aggregated.displayPrefix).toBe("p");
 		ls.stop();
 	});
 
@@ -89,7 +87,7 @@ describe("LlamaState", () => {
 		ls.stop();
 	});
 
-	test("parseSlotResponse: multiple generating slots picks highest speed", () => {
+	test("parseSlotResponse: multiple generating slots shows all", () => {
 		const ls = new LlamaState(8080);
 		ls["parseSlotResponse"]({
 			"0": {
@@ -108,8 +106,8 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("generating");
 		expect(state.slots).toHaveLength(2);
-		// Slot 1 has higher speed (200/300 ≈ 67% vs 100/200 = 50%)
-		expect(state.aggregated.displayPrefix).toBe("g");
+		// Both slots shown with slot IDs, sorted by slotId asc
+		expect(state.aggregated.displayValue).toBe("0:100t/s, 1:200t/s");
 		ls.stop();
 	});
 
@@ -152,7 +150,6 @@ describe("LlamaState", () => {
 
 	test("parseSlotResponse: handles malformed slot data gracefully", () => {
 		const ls = new LlamaState(8080);
-		// Slot with missing fields
 		ls["parseSlotResponse"]({
 			"0": {
 				id: 0,
@@ -161,7 +158,6 @@ describe("LlamaState", () => {
 			} as any,
 		});
 		const state = ls.getState();
-		// Should not crash — state shape intact
 		expect(state.type).toBeDefined();
 		expect(Array.isArray(state.slots)).toBe(true);
 		expect(state.aggregated).toBeDefined();
@@ -170,7 +166,6 @@ describe("LlamaState", () => {
 
 	test("parseSlotResponse: computes TPS for generating slots across polls", () => {
 		const ls = new LlamaState(8080);
-		// Stub Date.now() for deterministic testing
 		let fakeTime = 1000000;
 		vi.spyOn(Date, "now").mockImplementation(() => fakeTime);
 
@@ -198,8 +193,9 @@ describe("LlamaState", () => {
 		});
 
 		const state = ls.getState();
-		// 150 tokens decoded / 2 seconds = 75 t/s
 		expect(state.slots[0].tokensPerSecond).toBe(75);
+		// Display includes slot ID: `0:75t/s`
+		expect(state.aggregated.displayValue).toBe("0:75t/s");
 		ls.stop();
 	});
 
@@ -230,11 +226,11 @@ describe("LlamaState", () => {
 		});
 		const state = ls.getState();
 		expect(state.slots[0].type).toBe("processing");
-		expect(state.slots[0].progress).toBe(0.9); // (1000-100)/1000 = 0.9
+		expect(state.slots[0].progress).toBe(0.9);
 		ls.stop();
 	});
 
-	test("parseSlotResponse: handles multiple processing slots", () => {
+	test("parseSlotResponse: multiple processing slots shows all percentages", () => {
 		const ls = new LlamaState(8080);
 		ls["parseSlotResponse"]({
 			"0": {
@@ -253,8 +249,191 @@ describe("LlamaState", () => {
 		const state = ls.getState();
 		expect(state.type).toBe("processing");
 		expect(state.slots).toHaveLength(2);
-		// Slot 0 has 50% progress, Slot 1 has 20% progress
-		expect(state.aggregated.displayPrefix).toBe("p");
+		// Both slots shown with slot IDs, sorted by slotId asc
+		expect(state.aggregated.displayValue).toBe("0:50%, 1:20%");
 		ls.stop();
 	});
+
+	test("parseSlotResponse: many generating slots truncates with +N", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 100, n_remain: 100 }],
+				params: { n_predict: 200 },
+			},
+			"1": {
+				id: 1,
+				is_processing: true,
+				next_token: [{ n_decoded: 200, n_remain: 100 }],
+				params: { n_predict: 300 },
+			},
+			"2": {
+				id: 2,
+				is_processing: true,
+				next_token: [{ n_decoded: 150, n_remain: 50 }],
+				params: { n_predict: 200 },
+			},
+			"3": {
+				id: 3,
+				is_processing: true,
+				next_token: [{ n_decoded: 50, n_remain: 50 }],
+				params: { n_predict: 100 },
+			},
+			"4": {
+				id: 4,
+				is_processing: true,
+				next_token: [{ n_decoded: 30, n_remain: 20 }],
+				params: { n_predict: 50 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("generating");
+		expect(state.slots).toHaveLength(5);
+		// Shows top 2 + "+3 remaining", sorted by slotId asc
+		expect(state.aggregated.displayValue).toBe("0:100t/s, 1:200t/s, +3");
+		ls.stop();
+	});
+
+	test("parseSlotResponse: many processing slots truncates with +N", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: true,
+				next_token: [{ n_decoded: 0, n_remain: 10 }],
+				params: { n_predict: 100 },
+			},
+			"1": {
+				id: 1,
+				is_processing: true,
+				next_token: [{ n_decoded: 0, n_remain: 50 }],
+				params: { n_predict: 100 },
+			},
+			"2": {
+				id: 2,
+				is_processing: true,
+				next_token: [{ n_decoded: 0, n_remain: 80 }],
+				params: { n_predict: 100 },
+			},
+			"3": {
+				id: 3,
+				is_processing: true,
+				next_token: [{ n_decoded: 0, n_remain: 90 }],
+				params: { n_predict: 100 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("processing");
+		expect(state.slots).toHaveLength(4);
+		// Shows top 2 + "+2 remaining", sorted by slotId asc
+		expect(state.aggregated.displayValue).toBe("0:90%, 1:50%, +2");
+		ls.stop();
+	});
+
+	test("parseSlotResponse: inactive slot shows as [-] between active slots",
+		() => {
+			const ls = new LlamaState(8080);
+			ls["parseSlotResponse"]({
+				"0": {
+					id: 0,
+					is_processing: true,
+					next_token: [{ n_decoded: 100, n_remain: 100 }],
+					params: { n_predict: 200 },
+				},
+				"1": {
+					id: 1,
+					is_processing: false,
+					next_token: [{ n_decoded: 0, n_remain: 0 }],
+					params: { n_predict: 0 },
+				},
+				"2": {
+					id: 2,
+					is_processing: true,
+					next_token: [{ n_decoded: 50, n_remain: 50 }],
+					params: { n_predict: 100 },
+				},
+			});
+			const state = ls.getState();
+			expect(state.type).toBe("generating");
+			expect(state.slots).toHaveLength(3);
+			// Slot 0 active, Slot 1 inactive, Slot 2 active
+			expect(state.aggregated.displayValue).toBe(
+				"0:100t/s, 1:-, 2:50t/s",
+			);
+			ls.stop();
+		},
+	);
+
+	test("parseSlotResponse: all slots inactive shows all idle", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: false,
+				next_token: [{ n_decoded: 0, n_remain: 0 }],
+				params: { n_predict: 0 },
+			},
+			"1": {
+				id: 1,
+				is_processing: false,
+				next_token: [{ n_decoded: 0, n_remain: 0 }],
+				params: { n_predict: 0 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("idle");
+		expect(state.slots).toHaveLength(2);
+		expect(state.aggregated.displayValue).toBe("0:-, 1:-");
+		ls.stop();
+	});
+
+	test("parseSlotResponse: single active generating among inactive", () => {
+		const ls = new LlamaState(8080);
+		ls["parseSlotResponse"]({
+			"0": {
+				id: 0,
+				is_processing: false,
+				next_token: [{ n_decoded: 0, n_remain: 0 }],
+				params: { n_predict: 0 },
+			},
+			"1": {
+				id: 1,
+				is_processing: true,
+				next_token: [{ n_decoded: 75, n_remain: 50 }],
+				params: { n_predict: 125 },
+			},
+		});
+		const state = ls.getState();
+		expect(state.type).toBe("generating");
+		expect(state.slots).toHaveLength(2);
+		expect(state.aggregated.displayValue).toBe("0:-, 1:75t/s");
+		ls.stop();
+	});
+
+	test("parseSlotResponse: single active processing among inactive",
+		() => {
+			const ls = new LlamaState(8080);
+			ls["parseSlotResponse"]({
+				"0": {
+					id: 0,
+					is_processing: false,
+					next_token: [{ n_decoded: 0, n_remain: 0 }],
+					params: { n_predict: 0 },
+				},
+				"1": {
+					id: 1,
+					is_processing: true,
+					next_token: [{ n_decoded: 0, n_remain: 50 }],
+					params: { n_predict: 100 },
+				},
+			});
+			const state = ls.getState();
+			expect(state.type).toBe("processing");
+			expect(state.slots).toHaveLength(2);
+			expect(state.aggregated.displayValue).toBe("0:-, 1:50%");
+			ls.stop();
+		},
+	);
 });

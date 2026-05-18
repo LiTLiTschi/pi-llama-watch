@@ -88,10 +88,19 @@ export class LlamaState {
 	parseSlotResponse(data: RawSlots): void {
 		const now = Date.now();
 		const slots: SlotInfo[] = [];
+		const inactiveSlotIds = new Set<number>();
 		const currentSlotIds = new Set<number>();
 
+		// First pass: collect all slot IDs from the API
+		const allSlotIds = new Set<number>();
+		for (const [, slot] of Object.entries(data)) {
+			allSlotIds.add(slot.id);
+		}
+
+		// Second pass: process active slots
 		for (const [, slot] of Object.entries(data)) {
 			if (!slot.is_processing) {
+				inactiveSlotIds.add(slot.id);
 				continue;
 			}
 
@@ -143,45 +152,82 @@ export class LlamaState {
 			}
 		}
 
-		// Determine aggregated display
+		// Add inactive slots (they'll be shown as [-])
+		for (const inactiveId of inactiveSlotIds) {
+			slots.push({
+				slotId: inactiveId,
+				type: "idle" as LlamaStateType,
+			});
+		}
+
+		// Determine aggregated display — show ALL slot values as `slotId:value`, no p/g
 		let type: LlamaStateType = "idle";
-		let displayPrefix: "p" | "g" | null = null;
 		let displayValue = "";
 
 		if (slots.length === 0) {
 			type = "idle";
+			displayValue = "all idle";
 		} else {
-			const hasGenerating = slots.some((s) => s.type === "generating");
-			if (hasGenerating) {
+			// Determine overall type
+			if (slots.some((s) => s.type === "generating")) {
 				type = "generating";
-				displayPrefix = "g";
-				// Pick generating slot with highest actual TPS
-				const genSlots = slots.filter((s) => s.type === "generating");
-				const top = genSlots.reduce((a, b) =>
-					(a.tokensPerSecond ?? 0) >= (b.tokensPerSecond ?? 0) ? a : b,
-				);
-				// Show TPS if we have a measurement, otherwise show raw decoded count
-				if (top.tokensPerSecond) {
-					displayValue = `${Math.round(top.tokensPerSecond)}t/s`;
-				} else {
-					displayValue = `${top.tokensDecoded}`;
-				}
-			} else {
+			} else if (slots.some((s) => s.type === "processing")) {
 				type = "processing";
-				displayPrefix = "p";
-				const top = slots.reduce((a, b) =>
-					(a.progress ?? 0) >= (b.progress ?? 0) ? a : b,
-				);
-				displayValue = top.progress
-					? `${Math.round(top.progress * 100)}%`
-					: "0%";
+			} else {
+				type = "idle";
 			}
+			// Sort by slotId ascending so display is deterministic
+			slots.sort((a, b) => a.slotId - b.slotId);
+
+			// Build one entry per slot
+			const entries: Array<{ slotId: number; value: string }> = slots.map(
+				(s) => {
+					if (s.type === "generating") {
+						const v =
+							s.tokensPerSecond !== undefined
+								? Math.round(s.tokensPerSecond)
+								: (s.tokensDecoded ?? 0);
+						return { slotId: s.slotId, value: `${v}t/s` };
+					} else if (s.type === "processing") {
+						const pct =
+							s.progress != null && s.progress > 0
+								? Math.round(s.progress * 100)
+								: undefined;
+						return {
+							slotId: s.slotId,
+							value: pct != null ? `${pct}%` : "--%",
+						};
+					} else {
+						// Inactive/idle slot
+						return { slotId: s.slotId, value: "-" };
+					}
+				},
+			);
+
+			// Compact: all if ≤3, truncate with +N if more
+			displayValue = formatCompact(entries);
 		}
 
 		this.currentData = {
 			type,
 			slots,
-			aggregated: { displayPrefix, displayValue },
+			aggregated: { displayPrefix: null, displayValue },
 		};
 	}
+}
+
+/** Compact display: show all if ≤3, else top-2 + "+N remaining" */
+function formatCompact(
+	entries: Array<{ slotId: number; value: string }>,
+	maxShow = 3,
+): string {
+	if (entries.length === 0) return "";
+	if (entries.length <= maxShow) {
+		return entries.map((e) => `${e.slotId}:${e.value}`).join(", ");
+	}
+	const shown = entries.slice(0, maxShow - 1);
+	const remaining = entries.length - (maxShow - 1);
+	const parts = shown.map((e) => `${e.slotId}:${e.value}`);
+	parts.push(`+${remaining}`);
+	return parts.join(", ");
 }

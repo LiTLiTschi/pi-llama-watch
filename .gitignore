@@ -6,3 +6,36 @@ dist/
 
 # Dependencies
 node_modules/
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+
+# Credentials
+*.key
+*.pem
+*.secret
+credentials.json
+service-account.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Pi tooling
+.pi-lens/
+.pi/tasks/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
