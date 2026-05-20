@@ -1,3 +1,4 @@
+# TODO: Update README.md
 # pi-llama-watch
 
 Pi extension showing LLM status in the status bar: `p[88%]` (amber, prompt processing) and `g[25t/s]` (green, token generation speed).
