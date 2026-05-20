@@ -220,7 +220,7 @@ try:
 except:
     sys.exit(0)
 for s in slots:
-    if s.get('is_processing'):
+    if s.get('is_processing') or s.get('next_token', [{}])[0].get('n_decoded', 0) > 0:
         nt = (s.get('next_token') or [{}])[0]
         decoded = nt.get('n_decoded', 0)
         remain = nt.get('n_remain', 0)
