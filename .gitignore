@@ -1,5 +1,6 @@
 .pi/
 .pi-lens/
+package-lock.json
 
 # Local Pi runtime state
 .atl/
