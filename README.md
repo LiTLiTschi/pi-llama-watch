@@ -1,67 +1,87 @@
-# TODO: Update README.md
 # pi-llama-watch
 
-Pi extension showing LLM status in the status bar: `p[88%]` (amber, prompt processing) and `g[25t/s]` (green, token generation speed).
+**pi-llama-watch** is an extension for the Pi coding-agent that displays real-time status of Llama LLM slots in Pi’s status bar. It shows prompt processing progress (as a percentage in amber) and token generation speed (as `t/s` in green), supporting single or multiple slots.
+
+## Features
+
+- Prompt processing progress (%) via system logs (journalctl)
+- Token generation speed (`t/s`) via the `\/slots` API
+- Multi-slot display (comma-separated, with truncation)
+- Theme-aware colors: amber for processing, green for generating
+- Toggle on/off with a Pi command
+
+## Installation
+
+Install directly into Pi via Git:
+
+```bash
+pi install git:https://github.com/LiTLiTschi/pi-llama-watch
+```
+
+This will clone the extension and make it available in your Pi environment.
 
 ## Usage
 
-### Automatic
-
-Place the extension in one of these locations:
-
-```
-~/.pi/agent/extensions/llama-watch.ts
-<path>/pi-llama-watch/src/index.ts  (via settings.json extensions array)
-```
-
-### Manual
-
-Load with:
+Control the status display with the `/llama-watch` command:
 
 ```bash
-pi --extension src/index.ts
-```
-
-### Commands
-
-```
-/llama-watch on       # Enable status display
-/llama-watch off      # Disable status display
+/llama-watch on       # Enable display
+/llama-watch off      # Disable display
 /llama-watch toggle   # Toggle on/off
 ```
 
-### Configuration
+## Configuration
 
-Set the llama server port:
+- **LLAMA_PORT** (default: `8080`): TCP port where the Llama server exposes its `/slots` endpoint.
+- **LLAMA_SERVICE** (default: `llama`): systemd service name for journalctl log parsing.
+
+Example:
 
 ```bash
-export LLAMA_PORT=8080  # default
+export LLAMA_PORT=8081
+export LLAMA_SERVICE="my-llama-service"
 ```
 
-## Display
+## Status Bar Display
 
-| State      | Status bar         |
-| ---------- | ------------------ |
-| Processing | `p[88%]` (amber)   |
-| Generating | `g[25t/s]` (green) |
-| Idle       | hidden             |
-
-## Status bar colors
-
-- **Processing** (amber/warning): LLM is evaluating the prompt
-- **Generating** (green/success): LLM is outputting tokens
+| State      | Example       | Color |
+| ---------- | ------------- | ----- |
+| Processing | `88%`         | Amber |
+| Generating | `213t/s`      | Green |
+| Multiple   | `10%, 250t/s` | Mixed |
+| Inactive   | `-`           | Dim   |
+| Idle       | (hidden)      | —     |
 
 ## Architecture
 
 ```
 src/
-├── LlamaState.ts       # Core polling class (pure, testable)
-├── format.ts           # Pure formatting functions (pure, testable)
-├── index.ts            # Pi extension entry point (wires everything together)
-├── LlamaState.test.ts  # Tests for LlamaState
-└── format.test.ts      # Tests for format functions
+├── LlamaState.ts       # Polls /slots API + journalctl, computes SlotInfo[]
+├── format.ts           # formatProcessing, formatGenerating, formatState
+├── index.ts            # Pi extension entry point (widget + commands)
+├── LlamaState.test.ts  # Unit tests for LlamaState logic
+└── format.test.ts      # Unit tests for formatting functions
 ```
 
-- `LlamaState` polls `/slots` API every 1s
-- `format` functions convert state to display strings
-- `index.ts` connects to Pi's `ctx.ui.setStatus()`
+1. **LlamaState** polls the Llama server every second and merges journalctl data to distinguish prompt processing vs generation.
+2. **format** modules convert numeric progress or TPS into user-friendly strings.
+3. **index.ts** registers commands and updates the Pi UI widget.
+
+## Running Tests
+
+Install dependencies and run Vitest:
+
+```bash
+npm install
+npm test
+# or
+npm run test
+```
+
+## Contributing
+
+Contributions welcome! Please fork, add tests for any new behavior, and submit a pull request. Observe the existing TDD approach.
+
+## License
+
+MIT
