@@ -55,13 +55,13 @@ describe("formatGenerating", () => {
 });
 
 describe("formatState", () => {
-	test("returns null for idle state", () => {
+	test("returns em-dash for idle state", () => {
 		const state: LlamaStateData = {
 			type: "idle",
 			slots: [],
 			aggregated: { displayPrefix: null, displayValue: "" },
 		};
-		expect(formatState(state)).toBeNull();
+		expect(formatState(state)).toBe("—");
 	});
 
 	test("returns displayValue for processing state", () => {
@@ -89,12 +89,12 @@ describe("formatState", () => {
 		expect(formatState(state)).toBe("25t/s");
 	});
 
-	test("returns null when displayValue is empty string", () => {
+	test("returns em-dash when displayValue is empty string", () => {
 		const state: LlamaStateData = {
 			type: "processing",
 			slots: [],
 			aggregated: { displayPrefix: null, displayValue: "" },
 		};
-		expect(formatState(state)).toBeNull();
+		expect(formatState(state)).toBe("—");
 	});
 });

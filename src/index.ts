@@ -28,14 +28,10 @@ export default function (pi: ExtensionAPI) {
 			const formatted = formatState(state);
 
 			const theme = ctx.ui.theme;
-			if (formatted === null) {
-				ctx.ui.setWidget(STATUS_KEY, undefined);
-			} else {
-				const color = STATUS_COLORS[state.type] ?? "dim";
-				ctx.ui.setWidget(STATUS_KEY, [
-					theme.fg(color as Parameters<typeof theme.fg>[0], formatted),
-				]);
-			}
+			const color = STATUS_COLORS[state.type] ?? "dim";
+			ctx.ui.setWidget(STATUS_KEY, [
+				theme.fg(color as Parameters<typeof theme.fg>[0], formatted),
+			]);
 		}, 1000);
 	}
 

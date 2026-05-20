@@ -10,9 +10,6 @@ export function formatGenerating(tokensPerSecond: number): string {
 	return `${rounded}t/s`;
 }
 
-export function formatState(state: LlamaStateData): string | null {
-	if (state.type === "idle") {
-		return null;
-	}
-	return state.aggregated.displayValue || null;
+export function formatState(state: LlamaStateData): string {
+	return state.aggregated.displayValue || "—";
 }
