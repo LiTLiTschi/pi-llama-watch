@@ -70,7 +70,7 @@ export class LlamaState {
 			// Set LLAMA_PORT for the script
 			const env = { ...process.env, LLAMA_PORT: this.port.toString() };
 			const { stdout } = await execAsync(
-				`${this.scriptPath} --json --api --service ${this.service}`,
+				`${this.scriptPath} --json --api --slots-only --service ${this.service}`,
 				{
 					env,
 					timeout: 5000,

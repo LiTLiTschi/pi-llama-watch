@@ -3,6 +3,7 @@
 # Parse flags
 USE_API=false
 JSON_OUT=false
+SLOTS_ONLY=false
 LOG_LINES=10
 SERVICE="llama"
 FILTER_API_LOG=false
@@ -13,6 +14,7 @@ while [ "$i" -le "$#" ]; do
 	case "${!i}" in
 	--api) USE_API=true ;;
 	--json) JSON_OUT=true ;;
+	--slots-only) SLOTS_ONLY=true ;;
 	--service)
 		i=$((i + 1))
 		SERVICE="${!i}"
@@ -91,41 +93,47 @@ fi
 # ---- End llama animation ----
 
 # Gather RAM info
-read -r rused_m rtotal_m ravail_m <<<$(free -m | awk '/^Mem:/{printf "%s %s %s", $3, $2, $7}')
-rused_g=$(awk -v v="$rused_m" 'BEGIN { printf "%.1f", v/1024 }')
-rtotal_g=$(awk -v v="$rtotal_m" 'BEGIN { printf "%.1f", v/1024 }')
-ravail_g=$(awk -v v="$ravail_m" 'BEGIN { printf "%.1f", v/1024 }')
+if ! $SLOTS_ONLY; then
+	read -r rused_m rtotal_m ravail_m <<<$(free -m | awk '/^Mem:/{printf "%s %s %s", $3, $2, $7}')
+	rused_g=$(awk -v v="$rused_m" 'BEGIN { printf "%.1f", v/1024 }')
+	rtotal_g=$(awk -v v="$rtotal_m" 'BEGIN { printf "%.1f", v/1024 }')
+	ravail_g=$(awk -v v="$ravail_m" 'BEGIN { printf "%.1f", v/1024 }')
 
-if ! $JSON_OUT; then
-	echo "=== TIME: $(date '+%H:%M:%S.%3N') ==="
-	if $COMPACT; then
-		# Compact RAM: "RAM: 24G used / 31G total (7.5G avail)"
-		echo "RAM: ${rused_g%.*}G used / ${rtotal_g%.*}G total (${ravail_g}G avail)"
-	else
-		echo '=== RAM ==='
-		free -h
+	if ! $JSON_OUT; then
+		echo "=== TIME: $(date '+%H:%M:%S.%3N') ==="
+		if $COMPACT; then
+			# Compact RAM: "RAM: 24G used / 31G total (7.5G avail)"
+			echo "RAM: ${rused_g%.*}G used / ${rtotal_g%.*}G total (${ravail_g}G avail)"
+		else
+			echo '=== RAM ==='
+			free -h
+		fi
 	fi
 fi
+
 # Gather GPU info
-gpu_line=$(rocm-smi --showmeminfo vram 2>/dev/null |
-	awk '/Total Memory/{gsub(/[^0-9]/,"",$NF); vals[++n]=$NF}
-    /Tot.*Used.*Memory/{gsub(/[^0-9]/,"",$NF); vals[++n]=$NF}
-    END{for(i=2;i<=n;i+=2){if(i>2)printf" | ";printf"%.2f/%.2f",vals[i]/1073741824,vals[i-1]/1073741824}}')
+if ! $SLOTS_ONLY; then
+	gpu_line=$(rocm-smi --showmeminfo vram 2>/dev/null |
+		awk '/Total Memory/{gsub(/[^0-9]/,"",$NF); vals[++n]=$NF}
+	    /Tot.*Used.*Memory/{gsub(/[^0-9]/,"",$NF); vals[++n]=$NF}
+	    END{for(i=2;i<=n;i+=2){if(i>2)printf" | ";printf"%.2f/%.2f",vals[i]/1073741824,vals[i-1]/1073741824}}')
 
-if ! $JSON_OUT; then
-	if $COMPACT; then
-		# Compact GPU VRAM: "GPU: 7.45/8.00 GiB | 7.45/8.00 GiB" (used/total per device)
-		echo "GPU: ${gpu_line:-N/A}"
-	else
-		echo '=== GPU VRAM (GiB) ==='
-		rocm-smi --showmeminfo vram 2>/dev/null |
-			awk '/Total/ {
-        for(i=1; i<=NF; i++) if($i ~ /^[0-9]+$/) {
-            printf "%.2f GiB\n", $i / 1073741824
-        }
-    }'
+	if ! $JSON_OUT; then
+		if $COMPACT; then
+			# Compact GPU VRAM: "GPU: 7.45/8.00 GiB | 7.45/8.00 GiB" (used/total per device)
+			echo "GPU: ${gpu_line:-N/A}"
+		else
+			echo '=== GPU VRAM (GiB) ==='
+			rocm-smi --showmeminfo vram 2>/dev/null |
+				awk '/Total/ {
+	        for(i=1; i<=NF; i++) if($i ~ /^[0-9]+$/) {
+	            printf "%.2f GiB\n", $i / 1073741824
+	        }
+	    }'
+		fi
 	fi
 fi
+
 
 
 # Show animated llama if requested
@@ -355,8 +363,12 @@ fi
 if $JSON_OUT; then
 	# Remove trailing comma from JSON_SLOTS
 	JSON_SLOTS="${JSON_SLOTS%,}"
-	printf '{"ram":{"used":"%s","total":"%s","avail":"%s"},"gpu":"%s","slots":[%s]}\n' \
-		"$rused_g" "$rtotal_g" "$ravail_g" "$gpu_line" "$JSON_SLOTS"
+	if $SLOTS_ONLY; then
+		printf '{"slots":[%s]}\n' "$JSON_SLOTS"
+	else
+		printf '{"ram":{"used":"%s","total":"%s","avail":"%s"},"gpu":"%s","slots":[%s]}\n' \
+			"$rused_g" "$rtotal_g" "$ravail_g" "$gpu_line" "$JSON_SLOTS"
+	fi
 	exit 0
 fi
 
