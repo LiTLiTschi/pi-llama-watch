@@ -2,8 +2,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 
-const execAsync = promisify(exec);
-
 export type LlamaStateType = "idle" | "processing" | "generating";
 
 export interface SlotInfo {
@@ -67,7 +65,10 @@ export class LlamaState {
 
 	private async poll(): Promise<void> {
 		try {
-			// Set LLAMA_PORT for the script
+			// Set LLAMA_PORT for the script.
+			// promisify(exec) is called here (not at module scope) so that
+			// vi.mock("child_process") replacements are always picked up.
+			const execAsync = promisify(exec);
 			const env = { ...process.env, LLAMA_PORT: this.port.toString() };
 			const { stdout } = await execAsync(
 				`${this.scriptPath} --json --api --slots-only --service ${this.service}`,
